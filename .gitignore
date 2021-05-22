@@ -4,3 +4,4 @@ lambda/leadProcessingTaskExpireEmailSQS/node_modules
 lambda/leadProcessingTaskGetEmailSQS/node_modules
 lambda/leadProcessingTaskImportEmail/node_modules
 .idea
+build
