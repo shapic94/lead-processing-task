@@ -1,14 +1,16 @@
+import React, {Component} from 'react';
+import {connect} from 'react-redux';
+
 import './Email.scss';
 
-import React, { Component } from 'react';
 
 class EmailComponent extends Component {
 	render() {
 		return (
-			<div>
+			<div className="email">
 				<div className="col-md-12">
-					<div className="email">
-						<p>{this.props.body}</p>
+					<div>
+						<p>{this.props.email.body}</p>
 					</div>
 				</div>
 			</div>
@@ -16,4 +18,10 @@ class EmailComponent extends Component {
 	}
 }
 
-export default EmailComponent
+const mapStateToProps = state => {
+	return {
+		email: state.global.email
+	}
+}
+
+export default connect(mapStateToProps)(EmailComponent)

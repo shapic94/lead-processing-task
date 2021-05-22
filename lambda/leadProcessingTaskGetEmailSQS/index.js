@@ -1,58 +1,67 @@
 const AWS = require('aws-sdk');
 AWS.config.update({region: 'us-east-2'});
-const docClient = new AWS.DynamoDB.DocumentClient();
+const db = new AWS.DynamoDB.DocumentClient();
 const sqs = new AWS.SQS({apiVersion: '2012-11-05'});
+const apiGatewayManagementApi = new AWS.ApiGatewayManagementApi({
+	apiVersion: '2018-11-29',
+	endpoint: '8wyzugxnaf.execute-api.us-east-2.amazonaws.com/production'
+});
 
 exports.handler = async function (event) {
 	if (event.Records.length) {
 		let item = event.Records[0];
+		let isEmailAssigned = false;
 
 		try {
-			let email = await getEmail(item.messageAttributes.Timestamp.stringValue, item.messageAttributes.Date.stringValue);
+			let email = await getEmail(item.messageAttributes.timestamp.stringValue, item.messageAttributes.date.stringValue);
 			let user = await getUser();
 
 			if (email && user) {
-				await setEmail(email, user);
+				isEmailAssigned = true;
+
+				email.assigned = user.connectionId;
+				await setEmail(email);
 				await setUser(user);
 				await sqsDelete(item);
 				await sqsPut(email, user);
-			} else {
-				throw new Error("Return message to queue");
+				await wsSend(email, user);
 			}
 		} catch (e) {
+			console.log(e);
+		}
+
+		if (!isEmailAssigned || event.Records.length - 1 !== 0) {
 			throw new Error("Return message to queue");
 		}
 	}
 
-	return {
-		statusCode: 200,
-	};
+	return {statusCode: 200};
 };
 
-async function setEmail(email, user) {
+async function setEmail(email) {
 	try {
-		await docClient.put({
+		await db.put({
 			TableName: 'emails',
-			Item: {...email, assigned: user.connectionId}
+			Item: email
 		}).promise();
 	} catch (e) {
 		throw e;
 	}
 }
 
-async function getEmail(Timestamp, Date) {
+async function getEmail(timestamp, date) {
 	let emails;
 	try {
-		emails = await docClient.query({
+		emails = await db.query({
 			TableName: 'emails',
 			KeyConditionExpression: "#timestamp = :timestamp and #date = :date",
 			ExpressionAttributeValues: {
-				":timestamp": parseInt(Timestamp),
-				":date": parseInt(Date),
+				":timestamp": parseInt(timestamp),
+				":date": parseInt(date),
 			},
 			ExpressionAttributeNames: {
-				"#timestamp": "Timestamp",
-				"#date": "Date"
+				"#timestamp": "timestamp",
+				"#date": "date"
 			},
 		}).promise();
 	} catch (e) {
@@ -63,7 +72,7 @@ async function getEmail(Timestamp, Date) {
 
 async function setUser(user) {
 	try {
-		await docClient.put({
+		await db.put({
 			TableName: 'users',
 			Item: {...user, status: 'busy'},
 		}).promise();
@@ -75,7 +84,7 @@ async function setUser(user) {
 async function getUser() {
 	let users;
 	try {
-		users = await docClient.scan({
+		users = await db.scan({
 			TableName: 'users',
 			FilterExpression: "#status = :status",
 			ExpressionAttributeValues: {
@@ -96,15 +105,15 @@ async function sqsPut(email, user) {
 		await sqs.sendMessage({
 			DelaySeconds: 120,
 			MessageAttributes: {
-				Timestamp: {
+				timestamp: {
 					DataType: 'Number',
-					StringValue: '' + email.Timestamp
+					StringValue: '' + email.timestamp
 				},
-				Date: {
+				date: {
 					DataType: "Number",
-					StringValue: '' + email.Date
+					StringValue: '' + email.date
 				},
-				User: {
+				user: {
 					DataType: "String",
 					StringValue: user.connectionId
 				}
@@ -122,6 +131,17 @@ async function sqsDelete(item) {
 		await sqs.deleteMessage({
 			QueueUrl: 'https://sqs.us-east-2.amazonaws.com/357063784055/leadProcessingTaskGetEmailSQS.fifo',
 			ReceiptHandle: item.receiptHandle
+		}).promise();
+	} catch (e) {
+		throw e;
+	}
+}
+
+async function wsSend(email, user) {
+	try {
+		await apiGatewayManagementApi.postToConnection({
+			ConnectionId: user.connectionId,
+			Data: JSON.stringify({email: email}),
 		}).promise();
 	} catch (e) {
 		throw e;

@@ -1,0 +1,17 @@
+.userDashboard {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 40px);
+
+  .emailWrapper {
+    position: relative;
+    height: 100%;
+    padding: 10px;
+    overflow: scroll;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    background-color: rgba(0, 0, 0, 0.01);
+    border-radius: 5px;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+  }
+
+}

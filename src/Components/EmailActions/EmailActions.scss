@@ -1,0 +1,19 @@
+.email-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  margin: 20px 0 0 0;
+
+  button {
+    border: none;
+    font-size: 13px;
+    padding: 10px 30px;
+    border-radius: 4px;
+    color: #ffffff;
+    background-color: #36d7b7;
+
+    &:hover {
+      background-color: #20C0A0;
+    }
+  }
+}

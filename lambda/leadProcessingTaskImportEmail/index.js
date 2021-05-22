@@ -3,7 +3,7 @@ const parser = require('lambda-multipart-parser');
 const xlsx = require('node-xlsx')
 const AWS = require('aws-sdk');
 AWS.config.update({region: 'us-east-2'});
-const docClient = new AWS.DynamoDB.DocumentClient();
+const db = new AWS.DynamoDB.DocumentClient();
 const sqs = new AWS.SQS({apiVersion: '2012-11-05'});
 
 exports.handler = async function (event) {
@@ -17,7 +17,7 @@ exports.handler = async function (event) {
 			i = 0;
 			d = {};
 			for (let value of row) {
-				d[headers[i]] = value
+				d[headers[i].toLowerCase()] = value
 
 				i++;
 			}
@@ -25,27 +25,32 @@ exports.handler = async function (event) {
 		}
 	}
 
-	data = data.sort((x, y) => x.Timestamp - y.Timestamp);
+	data = data.sort((x, y) => x.timestamp - y.timestamp);
 
 	for (let d of data) {
 		try {
 			let currentTimestamp = new Date().getTime();
-			let emailTimestamp = new Date(d.Date).getTime();
-			await setEmail({...d, Timestamp: currentTimestamp, Date: emailTimestamp});
-			await sqsPut({...d, Timestamp: currentTimestamp, Date: emailTimestamp});
+			let emailTimestamp = new Date(d.date).getTime();
+			await setEmail({...d, timestamp: currentTimestamp, date: emailTimestamp});
+			await sqsPut({...d, timestamp: currentTimestamp, date: emailTimestamp});
 		} catch (e) {
-			// No error handling for test project and try next one
+			console.log(e);
 		}
 	}
 
 	return {
 		statusCode: 200,
+		headers: {
+			"Access-Control-Allow-Headers" : "Content-Type",
+			"Access-Control-Allow-Origin": "*",
+			"Access-Control-Allow-Methods": "OPTIONS,POST,GET,PUT"
+		},
 	};
 };
 
 async function setEmail(row) {
 	try {
-		await docClient.put({
+		await db.put({
 			TableName: 'emails',
 			Item: row,
 		}).promise();
@@ -58,13 +63,13 @@ async function sqsPut(row) {
 	try {
 		await sqs.sendMessage({
 			MessageAttributes: {
-				Timestamp: {
+				timestamp: {
 					DataType: 'Number',
-					StringValue: '' + row.Timestamp
+					StringValue: '' + row.timestamp
 				},
-				Date: {
+				date: {
 					DataType: "Number",
-					StringValue: '' + row.Date
+					StringValue: '' + row.date
 				},
 			},
 			MessageBody: "Get email",

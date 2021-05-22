@@ -1,0 +1,31 @@
+table {
+  width: 100%;
+  font-size: 13px;
+
+  th, td {
+    border-bottom: 1px solid #ddd;
+    padding: 5px;
+
+    select {
+      border: 1px solid #ddd;
+      padding: 5px 10px;
+      border-radius: 4px;
+
+      &:hover {
+        border-color: #aaa;
+      }
+    }
+
+    button {
+      border: none;
+      padding: 5px 15px;
+      border-radius: 4px;
+      color: #ffffff;
+      background-color: #36d7b7;
+
+      &:hover {
+        background-color: #20C0A0;
+      }
+    }
+  }
+}

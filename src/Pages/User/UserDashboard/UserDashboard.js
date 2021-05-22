@@ -1,30 +1,110 @@
 import React, {Component} from 'react';
-import Email from "../../../Components/Email/Email";
+import {connect} from 'react-redux';
+import {w3cwebsocket as W3CWebSocket} from "websocket";
+import EmailComponent from "../../../Components/Email/Email";
+import NavigationComponent from "../../../Components/Navigation/Navigation";
 
+import './UserDashboard.scss';
+import LoadingComponent from "../../../Components/Loading/Loading";
+import {setEmail, setUser} from "../../../Redux/Actions";
+import IdleComponent from "../../../Components/Idle/Idle";
+import EmailActionsComponent from "../../../Components/EmailActions/EmailActions";
 
 class UserDashboardPage extends Component {
-	render() {
-		const greeting = 'Welcome to React';
+	constructor() {
+		super();
+		this.state = {
+			client: new W3CWebSocket('wss://8wyzugxnaf.execute-api.us-east-2.amazonaws.com/production')
+		}
+	}
+	componentWillMount() {
+		console.log('uslo')
+		this.state.client.onopen = () => {
+			console.log('online')
+			this.props.setUser({...this.props.user, status: 'online'})
+		};
 
+		this.state.client.onmessage = (message) => {
+			let data = JSON.parse(message.data);
+
+
+
+			if ('status' in data) {
+				this.props.setUser({...this.props.user, status: data.status})
+			} else if ('email' in data) {
+				this.props.setEmail(data.email)
+			}
+		};
+
+		this.state.client.onclose = () => {
+			console.log('offline')
+			this.props.setUser({...this.props.user, status: 'offline'})
+		};
+	}
+
+	componentDidUpdate(prevProps, prevState, snapshot) {
+		if (prevProps.user && this.props.user && prevProps.user.status !== this.props.user.status) {
+			if (this.state.client.readyState === this.state.client.OPEN) {
+				this.state.client.send(JSON.stringify({type: 'USER_STATUS', user: this.props.user, email: this.props.email}));
+
+				if (this.props.user.status === 'away') {
+					this.props.setEmail(null);
+				}
+			}
+		}
+
+		if (prevProps.email && this.props.email && prevProps.email.status !== this.props.email.status) {
+			if (this.state.client.readyState === this.state.client.OPEN) {
+				this.state.client.send(JSON.stringify({type: 'EMAIL_STATUS', email: this.props.email}));
+				this.props.setEmail(null)
+			}
+		}
+	}
+
+	render() {
 		return (
-			<div>
-				<div className="row mb-5">
-					<div className="col-md-4 text-center">
-						<button type="button" className="btn btn-primary">Positive reply</button>
-					</div>
-					<div className="col-md-4 text-center">
-						<button type="button" className="btn btn-primary">Neutral reply</button>
-					</div>
-					<div className="col-md-4 text-center">
-						<button type="button" className="btn btn-primary">Not a lead</button>
-					</div>
+			<div className="userDashboard">
+				<NavigationComponent/>
+				<div className="emailWrapper">
+					{this.props.user && this.props.user.status === 'online' && (
+						<div>
+							{!this.props.email && (
+								<LoadingComponent/>
+							)}
+							{this.props.email && (
+								<EmailComponent/>
+							)}
+						</div>
+					)}
+					{this.props.user && this.props.user.status === 'away' && (
+						<IdleComponent/>
+					)}
+					{this.props.user && this.props.user.status === 'offline' && (
+						<IdleComponent/>
+					)}
 				</div>
-				<div className="row">
-					<Email body={greeting}/>
+				<div className="actionWrapper">
+					{this.props.user && this.props.email && (
+						<EmailActionsComponent/>
+					)}
 				</div>
 			</div>
 		);
 	}
 }
 
-export default UserDashboardPage;
+const mapStateToProps = state => {
+	return {
+		user: state.global.user,
+		email: state.global.email,
+	}
+}
+
+const mapDispatchToProps = dispatch => {
+	return {
+		setUser: status => dispatch(setUser(status)),
+		setEmail: email => dispatch(setEmail(email)),
+	}
+}
+
+export default connect(mapStateToProps, mapDispatchToProps)(UserDashboardPage)

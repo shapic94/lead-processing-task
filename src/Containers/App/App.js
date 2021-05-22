@@ -1,19 +1,19 @@
 import './App.css';
 import {BrowserRouter as Router, Route, Switch} from "react-router-dom";
-import UserDashboard from "../../Pages/User/UserDashboard";
-import AdminDashboard from "../../Pages/Admin/AdminDashboard";
 import LoginPage from "../../Pages/Login/Login";
+import UserDashboardPage from "../../Pages/User/UserDashboard/UserDashboard";
+import AdminDashboardPage from "../../Pages/Admin/AdminDashboard/AdminDashboard";
 
 function App() {
 	return (
 		<Router>
-			<div className="container mt-5">
+			<div className="app">
 				<Switch>
 					<Route path="/admin-dashboard">
-						<AdminDashboard/>
+						<AdminDashboardPage/>
 					</Route>
 					<Route path="/user-dashboard">
-						<UserDashboard/>
+						<UserDashboardPage/>
 					</Route>
 					<Route path="/">
 						<LoginPage/>
